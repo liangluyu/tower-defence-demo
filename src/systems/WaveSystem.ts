@@ -1,5 +1,5 @@
 import { createWaveDefinitions, getScaledEnemyStats } from "../config/waveConfig";
-import type { EnemyStats, WaveDefinition } from "../types/game";
+import type { EnemyStats, SerializedWaveState, WaveDefinition } from "../types/game";
 
 export class WaveSystem {
   private readonly waves: WaveDefinition[];
@@ -10,8 +10,17 @@ export class WaveSystem {
   private awaitingNextWave = true;
   private finished = false;
 
-  constructor(totalWaves = 8) {
+  constructor(totalWaves = 8, initialState?: SerializedWaveState) {
     this.waves = createWaveDefinitions(totalWaves);
+
+    if (initialState) {
+      this.currentWaveIndex = initialState.currentWaveIndex;
+      this.spawnQueue = [...initialState.spawnQueue];
+      this.spawnTimer = initialState.spawnTimer;
+      this.wavePauseTimer = initialState.wavePauseTimer;
+      this.awaitingNextWave = initialState.awaitingNextWave;
+      this.finished = initialState.finished;
+    }
   }
 
   get totalWaves() {
@@ -84,5 +93,16 @@ export class WaveSystem {
     }
 
     return null;
+  }
+
+  serialize(): SerializedWaveState {
+    return {
+      currentWaveIndex: this.currentWaveIndex,
+      spawnQueue: [...this.spawnQueue],
+      spawnTimer: this.spawnTimer,
+      wavePauseTimer: this.wavePauseTimer,
+      awaitingNextWave: this.awaitingNextWave,
+      finished: this.finished,
+    };
   }
 }

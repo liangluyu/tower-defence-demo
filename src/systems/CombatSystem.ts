@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 import type { Scene } from "three";
-import type { TowerStats } from "../types/game";
+import { towerConfig } from "../config/towerConfig";
+import type { TowerType } from "../types/game";
 import { Enemy } from "../entities/Enemy";
 import { Projectile } from "../entities/Projectile";
 import { Tower } from "../entities/Tower";
@@ -18,11 +19,15 @@ export class CombatSystem {
     private readonly handlers: CombatHandlers,
   ) {}
 
-  addTower(stats: TowerStats, position: Vector3) {
-    const tower = new Tower(stats, position);
+  addTower(type: TowerType, position: Vector3, initialLevel = 1) {
+    const tower = new Tower(type, position, initialLevel);
     this.towers.push(tower);
     this.scene.add(tower.mesh);
     return tower;
+  }
+
+  getTowerById(id: string) {
+    return this.towers.find((tower) => tower.id === id) ?? null;
   }
 
   update(delta: number, enemies: Enemy[]) {
@@ -39,7 +44,13 @@ export class CombatSystem {
       }
 
       tower.setFired();
-      const projectile = new Projectile(tower.position, tower.stats, target);
+      const projectile = new Projectile(
+        tower.position,
+        tower.type,
+        tower.currentStats,
+        target,
+        tower.config.color,
+      );
       this.projectiles.push(projectile);
       this.scene.add(projectile.mesh);
     }
@@ -63,6 +74,8 @@ export class CombatSystem {
 
   private resolveImpact(projectile: Projectile, enemies: Enemy[]) {
     const directTarget = projectile.target;
+    const towerType = projectile.towerType;
+    const towerDef = towerConfig[towerType];
     const { damage, splashRadius, slowDuration, slowMultiplier } = projectile.stats;
 
     const applyHit = (enemy: Enemy, amount: number) => {
@@ -70,12 +83,12 @@ export class CombatSystem {
         return;
       }
 
-      const killed = enemy.takeDamage(amount);
+      const result = enemy.takeDamage(amount, towerDef.attackType);
       if (slowMultiplier && slowDuration) {
         enemy.applySlow(slowMultiplier, slowDuration);
       }
 
-      if (killed) {
+      if (result.killed) {
         this.handlers.onEnemyKilled(enemy);
       }
     };

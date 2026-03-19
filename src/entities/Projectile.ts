@@ -4,7 +4,7 @@ import {
   SphereGeometry,
   Vector3,
 } from "three";
-import type { TowerStats } from "../types/game";
+import type { TowerLevelStats, TowerType } from "../types/game";
 import type { Enemy } from "./Enemy";
 
 export class Projectile {
@@ -14,15 +14,17 @@ export class Projectile {
 
   constructor(
     readonly sourcePosition: Vector3,
-    readonly stats: TowerStats,
+    readonly towerType: TowerType,
+    readonly stats: TowerLevelStats,
     readonly target: Enemy,
+    readonly color: number,
   ) {
     this.position = sourcePosition.clone().add(new Vector3(0, 0.7, 0));
     this.mesh = new Mesh(
-      new SphereGeometry(stats.type === "mortar" ? 0.18 : 0.13, 12, 12),
+      new SphereGeometry(towerType === "mortar" ? 0.18 : 0.13, 12, 12),
       new MeshStandardMaterial({
-        color: stats.color,
-        emissive: stats.color,
+        color,
+        emissive: color,
         emissiveIntensity: 0.55,
       }),
     );

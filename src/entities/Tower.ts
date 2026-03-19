@@ -6,24 +6,29 @@ import {
   TorusGeometry,
   Vector3,
 } from "three";
-import type { TowerStats } from "../types/game";
+import { towerConfig } from "../config/towerConfig";
+import type { SerializedTowerState, TowerLevelStats, TowerStats, TowerType } from "../types/game";
 import type { Enemy } from "./Enemy";
 
+let towerIdSeed = 0;
+
 export class Tower {
+  readonly id: string;
   readonly mesh: Group;
   readonly position: Vector3;
-  readonly range: number;
-  readonly cost: number;
-  readonly type: TowerStats["type"];
+  readonly type: TowerType;
   private readonly head: Mesh;
+  private readonly ring: Mesh;
   private cooldown = 0;
   private attackPulse = 0;
+  private levelIndex = 0;
 
-  constructor(readonly stats: TowerStats, position: Vector3) {
-    this.type = stats.type;
+  constructor(type: TowerType, position: Vector3, initialLevel = 1) {
+    this.id = `tower-${towerIdSeed += 1}`;
+    this.type = type;
     this.position = position.clone();
-    this.range = stats.attackRange;
-    this.cost = stats.cost;
+
+    const stats = towerConfig[type];
 
     const base = new Mesh(
       new CylinderGeometry(0.55, 0.8, 0.65, 6),
@@ -46,7 +51,7 @@ export class Tower {
     this.head.position.y = 0.62;
     this.head.castShadow = true;
 
-    const ring = new Mesh(
+    this.ring = new Mesh(
       new TorusGeometry(0.38, 0.09, 10, 20),
       new MeshStandardMaterial({
         color: stats.color,
@@ -54,18 +59,63 @@ export class Tower {
         emissiveIntensity: 0.25,
       }),
     );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.28;
+    this.ring.rotation.x = Math.PI / 2;
+    this.ring.position.y = 0.28;
 
     this.mesh = new Group();
     this.mesh.position.copy(this.position);
-    this.mesh.add(base, this.head, ring);
+    this.mesh.userData.towerId = this.id;
+    this.mesh.add(base, this.head, this.ring);
+
+    while (this.level < initialLevel) {
+      this.upgrade();
+    }
+  }
+
+  get config(): TowerStats {
+    return towerConfig[this.type];
+  }
+
+  get level() {
+    return this.levelIndex + 1;
+  }
+
+  get currentStats(): TowerLevelStats {
+    return this.config.levels[this.levelIndex];
+  }
+
+  get range() {
+    return this.currentStats.attackRange;
+  }
+
+  get attackType() {
+    return this.config.attackType;
+  }
+
+  get upgradeCost() {
+    return this.currentStats.upgradeCost ?? null;
+  }
+
+  canUpgrade() {
+    return this.levelIndex < this.config.levels.length - 1;
+  }
+
+  upgrade() {
+    if (!this.canUpgrade()) {
+      return false;
+    }
+
+    this.levelIndex += 1;
+    const scale = 1 + this.levelIndex * 0.12;
+    this.head.scale.setScalar(scale);
+    this.ring.scale.setScalar(scale);
+    return true;
   }
 
   update(delta: number) {
     this.cooldown = Math.max(0, this.cooldown - delta);
     this.attackPulse = Math.max(0, this.attackPulse - delta * 3.5);
-    const pulseScale = 1 + this.attackPulse * 0.2;
+    const pulseScale = 1 + this.attackPulse * 0.2 + this.levelIndex * 0.12;
     this.head.scale.setScalar(pulseScale);
   }
 
@@ -74,7 +124,7 @@ export class Tower {
   }
 
   setFired() {
-    this.cooldown = 1 / this.stats.attackSpeed;
+    this.cooldown = 1 / this.currentStats.attackSpeed;
     this.attackPulse = 1;
   }
 
@@ -108,5 +158,18 @@ export class Tower {
 
   isNear(position: Vector3, minDistance = 1.45) {
     return this.position.distanceTo(position) < minDistance;
+  }
+
+  setSelected(selected: boolean) {
+    const material = this.ring.material as MeshStandardMaterial;
+    material.emissiveIntensity = selected ? 0.7 : 0.25;
+  }
+
+  serialize(): SerializedTowerState {
+    return {
+      type: this.type,
+      level: this.level,
+      position: [this.position.x, this.position.y, this.position.z],
+    };
   }
 }

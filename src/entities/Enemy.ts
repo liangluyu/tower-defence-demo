@@ -6,8 +6,8 @@ import {
   MeshStandardMaterial,
   PlaneGeometry,
 } from "three";
-import type { EnemyStats } from "../types/game";
-import { getPointOnPath, pathLength } from "../utils/path";
+import type { DamageType, EnemyStats, SerializedEnemyState } from "../types/game";
+import { PathRuntime } from "../utils/path";
 
 export class Enemy {
   readonly mesh: Group;
@@ -26,11 +26,18 @@ export class Enemy {
   private slowMultiplier = 1;
   private slowTimer = 0;
 
-  constructor(private readonly stats: EnemyStats) {
+  constructor(
+    private readonly stats: EnemyStats,
+    private readonly path: PathRuntime,
+    initialState?: SerializedEnemyState,
+  ) {
     this.type = stats.type;
-    this.hp = stats.hp;
+    this.hp = initialState?.hp ?? stats.hp;
     this.maxHp = stats.hp;
     this.reward = stats.reward;
+    this.progress = initialState?.progress ?? 0;
+    this.slowMultiplier = initialState?.slowMultiplier ?? 1;
+    this.slowTimer = initialState?.slowTimer ?? 0;
     this.baseColor = new Color(stats.color);
     this.material = new MeshStandardMaterial({
       color: stats.color,
@@ -61,7 +68,8 @@ export class Enemy {
 
     this.mesh = new Group();
     this.mesh.add(body, hpBarBg, this.hpBarFill);
-    this.mesh.position.copy(getPointOnPath(0));
+    this.mesh.position.copy(this.path.getPointOnPath(this.progress));
+    this.syncHealthBar();
   }
 
   get position() {
@@ -82,14 +90,14 @@ export class Enemy {
     }
 
     this.progress += this.stats.speed * this.slowMultiplier * delta;
-    if (this.progress >= pathLength) {
+    if (this.progress >= this.path.pathLength) {
       this.reachedGoal = true;
       this.alive = false;
       this.mesh.visible = false;
       return;
     }
 
-    this.mesh.position.copy(getPointOnPath(this.progress));
+    this.mesh.position.copy(this.path.getPointOnPath(this.progress));
 
     if (this.hitFlash > 0) {
       this.hitFlash = Math.max(0, this.hitFlash - delta * 5);
@@ -106,28 +114,44 @@ export class Enemy {
     this.material.opacity = Math.max(0, 1 - this.deathFade);
   }
 
-  takeDamage(amount: number) {
+  takeDamage(amount: number, damageType: DamageType) {
     if (!this.alive) {
-      return false;
+      return { killed: false, actualDamage: 0 };
     }
 
-    this.hp = Math.max(0, this.hp - amount);
+    const resistance = this.stats.resistances?.[damageType] ?? 0;
+    const actualDamage = Math.max(1, Math.round(amount * (1 - resistance)));
+    this.hp = Math.max(0, this.hp - actualDamage);
     this.hitFlash = 0.95;
-    const healthRatio = this.hp / this.maxHp;
-    this.hpBarFill.scale.x = Math.max(0.01, healthRatio);
-    this.hpBarFill.position.x = -(1 - healthRatio) * this.stats.size * 0.28;
+    this.syncHealthBar();
 
     if (this.hp <= 0) {
       this.alive = false;
-      return true;
+      return { killed: true, actualDamage };
     }
 
-    return false;
+    return { killed: false, actualDamage };
+  }
+
+  private syncHealthBar() {
+    const healthRatio = this.hp / this.maxHp;
+    this.hpBarFill.scale.x = Math.max(0.01, healthRatio);
+    this.hpBarFill.position.x = -(1 - healthRatio) * this.stats.size * 0.28;
   }
 
   applySlow(multiplier: number, duration: number) {
     this.slowMultiplier = Math.min(this.slowMultiplier, multiplier);
     this.slowTimer = Math.max(this.slowTimer, duration);
+  }
+
+  serialize(): SerializedEnemyState {
+    return {
+      type: this.type,
+      hp: this.hp,
+      progress: this.progress,
+      slowMultiplier: this.slowMultiplier,
+      slowTimer: this.slowTimer,
+    };
   }
 
   shouldRemove() {

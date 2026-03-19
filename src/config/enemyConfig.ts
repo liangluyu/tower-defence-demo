@@ -9,6 +9,10 @@ export const enemyConfig: Record<EnemyStats["type"], EnemyStats> = {
     speed: 2.5,
     reward: 12,
     size: 0.6,
+    resistances: {
+      physical: 0.1,
+      magic: 0,
+    },
   },
   fast: {
     type: "fast",
@@ -18,6 +22,10 @@ export const enemyConfig: Record<EnemyStats["type"], EnemyStats> = {
     speed: 4.4,
     reward: 10,
     size: 0.45,
+    resistances: {
+      physical: 0,
+      magic: 0.15,
+    },
   },
   tank: {
     type: "tank",
@@ -27,5 +35,9 @@ export const enemyConfig: Record<EnemyStats["type"], EnemyStats> = {
     speed: 1.55,
     reward: 18,
     size: 0.78,
+    resistances: {
+      physical: 0.3,
+      magic: -0.1,
+    },
   },
 };

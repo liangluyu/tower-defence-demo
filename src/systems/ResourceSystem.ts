@@ -1,22 +1,16 @@
-import type { GameStatsSnapshot, TowerType } from "../types/game";
+import type { TowerType } from "../types/game";
 
 export class ResourceSystem {
-  gold = 180;
-  life = 20;
+  gold: number;
+  life: number;
   wave = 1;
   totalWaves = 1;
   selectedTower: TowerType | null = "cannon";
-  statusText = "点击地面放置塔，阻止敌人到达终点。";
+  statusText = "点击地面放置防御塔，阻止敌人到达终点。";
 
-  getSnapshot(): GameStatsSnapshot {
-    return {
-      gold: this.gold,
-      life: this.life,
-      wave: this.wave,
-      totalWaves: this.totalWaves,
-      selectedTower: this.selectedTower,
-      statusText: this.statusText,
-    };
+  constructor(initialGold = 180, initialLife = 20) {
+    this.gold = initialGold;
+    this.life = initialLife;
   }
 
   setWave(wave: number, totalWaves: number) {
