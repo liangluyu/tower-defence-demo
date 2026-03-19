@@ -1,0 +1,40 @@
+import type { TowerStats } from "../types/game";
+
+export const towerConfig: Record<TowerStats["type"], TowerStats> = {
+  cannon: {
+    type: "cannon",
+    label: "狙击塔",
+    description: "高单体伤害，适合击杀坦克敌人。",
+    color: 0xffc857,
+    cost: 70,
+    attackRange: 4.8,
+    attackSpeed: 0.8,
+    damage: 34,
+    projectileSpeed: 12,
+  },
+  mortar: {
+    type: "mortar",
+    label: "迫击炮塔",
+    description: "溅射爆炸，对密集敌群效果更好。",
+    color: 0xff8c42,
+    cost: 110,
+    attackRange: 4.2,
+    attackSpeed: 0.55,
+    damage: 22,
+    projectileSpeed: 9,
+    splashRadius: 1.6,
+  },
+  frost: {
+    type: "frost",
+    label: "冰霜塔",
+    description: "持续减速，稳定延长输出时间。",
+    color: 0x72ddf7,
+    cost: 90,
+    attackRange: 4.4,
+    attackSpeed: 1.1,
+    damage: 10,
+    projectileSpeed: 11,
+    slowMultiplier: 0.45,
+    slowDuration: 1.8,
+  },
+};
